@@ -13,7 +13,6 @@ from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping, ReduceLRO
 import matplotlib.pyplot as plt
 from preprocess import prepare_data, create_data_generators
 
-
 class PostureClassifier:
     def __init__(self, input_shape=(224, 224, 3), num_classes=2):
         """
@@ -81,7 +80,7 @@ class PostureClassifier:
 
         print("Model compiled successfully")
 
-    def train(self, train_generator, val_generator, epochs=50, model_save_path='models/'):
+    def train(self, train_generator, val_generator, epochs=50, model_save_path='../models/'):
         """
         Train the model with callbacks.
 
@@ -89,7 +88,7 @@ class PostureClassifier:
             train_generator: Training data generator
             val_generator: Validation data generator
             epochs (int): Number of training epochs
-            model_save_path (str): Path to save the trained model
+            model_save_path (str): Path to save the trained model (relative to src/)
         """
         # Create models directory if it doesn't exist
         os.makedirs(model_save_path, exist_ok=True)
@@ -215,37 +214,32 @@ class PostureClassifier:
 
         return metrics
 
-
-def fine_tune_model(model, train_generator, val_generator, epochs=10):
+def simple_fine_tune(model, train_generator, val_generator, epochs=5):
     """
-    Fine-tune the model by unfreezing some layers of the base model.
+    Simple fine-tuning approach - just unfreeze all layers with very low learning rate.
 
     Args:
-        model: Trained model to fine-tune
+        model: Trained model
         train_generator: Training data generator
         val_generator: Validation data generator
-        epochs (int): Number of fine-tuning epochs
+        epochs (int): Number of epochs
     """
-    print("Starting fine-tuning...")
+    print("🔧 Applying simple fine-tuning approach...")
 
-    # Unfreeze the top layers of MobileNetV2
-    base_model = model.layers[0]
-    base_model.trainable = True
+    # Make all layers trainable
+    for layer in model.layers:
+        layer.trainable = True
 
-    # Freeze early layers and unfreeze later layers
-    for layer in base_model.layers[:-20]:
-        layer.trainable = False
-
-    # Recompile with lower learning rate for fine-tuning
+    # Recompile with very low learning rate
     model.compile(
-        optimizer=Adam(learning_rate=0.0001 / 10),  # Lower learning rate
+        optimizer=Adam(learning_rate=0.00001),  # Very low learning rate
         loss='categorical_crossentropy',
-        metrics=['accuracy', 'precision', 'recall']
+        metrics=['accuracy']
     )
 
-    print(f"Fine-tuning with {len(model.trainable_variables)} trainable parameters")
+    print(f"📊 Fine-tuning all {len(model.trainable_variables)} trainable parameters")
 
-    # Fine-tune the model
+    # Train for a few epochs
     history = model.fit(
         train_generator,
         validation_data=val_generator,
@@ -254,7 +248,91 @@ def fine_tune_model(model, train_generator, val_generator, epochs=10):
     )
 
     return history
+    """
+    Fine-tune the model by unfreezing some layers of the base model.
+    
+    Args:
+        model: Trained model to fine-tune
+        train_generator: Training data generator
+        val_generator: Validation data generator
+        epochs (int): Number of fine-tuning epochs
+    """
+    print("Starting fine-tuning...")
 
+    # Find the base model (MobileNetV2) in the model layers
+    base_model = None
+    for layer in model.layers:
+        if hasattr(layer, 'layers') and len(layer.layers) > 10:  # MobileNetV2 has many layers
+            base_model = layer
+            break
+
+    if base_model is None:
+        # Alternative: look for MobileNetV2 by name
+        for layer in model.layers:
+            if 'mobilenet' in layer.name.lower():
+                base_model = layer
+                break
+
+    if base_model is None:
+        print("⚠️  Could not find base model for fine-tuning")
+        print("💡 Skipping fine-tuning step")
+        return None
+
+    print(f"📋 Found base model: {base_model.name}")
+
+    # Unfreeze the base model
+    base_model.trainable = True
+
+    # Freeze early layers and unfreeze later layers (last 20 layers)
+    total_layers = len(base_model.layers)
+    freeze_until = max(0, total_layers - 20)
+
+    for i, layer in enumerate(base_model.layers):
+        if i < freeze_until:
+            layer.trainable = False
+        else:
+            layer.trainable = True
+
+    trainable_count = sum([1 for layer in base_model.layers if layer.trainable])
+    print(f"📊 Unfrozen {trainable_count} layers out of {total_layers}")
+
+    # Recompile with lower learning rate for fine-tuning
+    model.compile(
+        optimizer=Adam(learning_rate=0.0001),  # Much lower learning rate for fine-tuning
+        loss='categorical_crossentropy',
+        metrics=['accuracy', 'precision', 'recall']
+    )
+
+    print(f"🔧 Fine-tuning with {len(model.trainable_variables)} trainable parameters")
+
+    # Define callbacks for fine-tuning
+    callbacks = [
+        EarlyStopping(
+            monitor='val_accuracy',
+            patience=5,  # Less patience for fine-tuning
+            restore_best_weights=True,
+            verbose=1
+        ),
+        ReduceLROnPlateau(
+            monitor='val_loss',
+            factor=0.5,
+            patience=3,
+            min_lr=1e-8,
+            verbose=1
+        )
+    ]
+
+    # Fine-tune the model
+    history = model.fit(
+        train_generator,
+        validation_data=val_generator,
+        epochs=epochs,
+        callbacks=callbacks,
+        verbose=1
+    )
+
+    print("✅ Fine-tuning completed!")
+    return history
 
 def main():
     """
@@ -313,16 +391,61 @@ def main():
         metrics = classifier.evaluate_model(val_gen)
 
         # Optional: Fine-tuning
-        response = input("Do you want to perform fine-tuning? (y/n): ")
-        if response.lower() == 'y':
-            print("7. Fine-tuning model...")
-            fine_tune_history = fine_tune_model(
-                classifier.model, train_gen, val_gen, epochs=10
-            )
+        print("\n6. Training complete! Checking for fine-tuning option...")
 
-            # Save fine-tuned model
-            classifier.model.save('models/posture_model_finetuned.h5')
-            print("Fine-tuned model saved!")
+        # Only offer fine-tuning if initial training was successful
+        if history is not None and 'val_accuracy' in history.history:
+            final_val_acc = history.history['val_accuracy'][-1]
+            print(f"📊 Final validation accuracy: {final_val_acc:.3f}")
+
+            if final_val_acc > 0.6:  # Only fine-tune if model is performing reasonably
+                response = input("Do you want to perform fine-tuning? (y/n): ")
+                if response.lower() == 'y':
+                    print("7. Fine-tuning model...")
+                    try:
+                        fine_tune_history = fine_tune_model(
+                            classifier.model, train_gen, val_gen, epochs=10
+                        )
+
+                        if fine_tune_history is not None:
+                            # Save fine-tuned model
+                            classifier.model.save('../models/posture_model_finetuned.h5')
+                            print("✅ Fine-tuned model saved!")
+
+                            # Compare performance
+                            fine_tune_val_acc = fine_tune_history.history['val_accuracy'][-1]
+                            print(f"📈 Performance comparison:")
+                            print(f"   Before fine-tuning: {final_val_acc:.3f}")
+                            print(f"   After fine-tuning:  {fine_tune_val_acc:.3f}")
+                            print(f"   Improvement: {fine_tune_val_acc - final_val_acc:+.3f}")
+
+                    except Exception as e:
+                        print(f"⚠️  Advanced fine-tuning failed: {e}")
+                        print("🔄 Trying simple fine-tuning approach...")
+
+                        try:
+                            simple_history = simple_fine_tune(
+                                classifier.model, train_gen, val_gen, epochs=5
+                            )
+
+                            # Save simple fine-tuned model
+                            classifier.model.save('../models/posture_model_simple_finetuned.h5')
+                            print("✅ Simple fine-tuned model saved!")
+
+                            # Compare performance
+                            simple_val_acc = simple_history.history['val_accuracy'][-1]
+                            print(f"📈 Performance comparison:")
+                            print(f"   Before fine-tuning: {final_val_acc:.3f}")
+                            print(f"   After simple fine-tuning: {simple_val_acc:.3f}")
+                            print(f"   Improvement: {simple_val_acc - final_val_acc:+.3f}")
+
+                        except Exception as e2:
+                            print(f"❌ All fine-tuning methods failed: {e2}")
+                            print("💡 Using the original trained model")
+            else:
+                print("💡 Model accuracy too low for fine-tuning. Try training longer first.")
+        else:
+            print("⚠️  Skipping fine-tuning due to training issues")
 
         print("\n=== Training Complete! ===")
         print(f"Best model saved in 'models/' directory")
@@ -331,7 +454,6 @@ def main():
     except Exception as e:
         print(f"Error during training: {e}")
         raise
-
 
 if __name__ == "__main__":
     # Set random seeds for reproducibility
