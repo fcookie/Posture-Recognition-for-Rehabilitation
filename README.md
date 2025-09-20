@@ -275,7 +275,7 @@ This project is open source and available under the [MIT License](LICENSE).
 
 For questions, suggestions, or collaboration opportunities:
 - GitHub Issues: [Create an issue](https://github.com/yourusername/posture-recognition/issues)
-- Email: your.email@example.com
+- Email: kuqifulvia1@gmail.com
 
 ---
 
