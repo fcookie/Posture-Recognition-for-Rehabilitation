@@ -2,11 +2,11 @@
 
 A computer vision system that classifies human posture as "correct" or "incorrect" using deep learning and transfer learning. This project demonstrates the application of AI in healthcare, specifically for physiotherapy and rehabilitation monitoring.
 
-## 🎯 Project Overview
+## Project Overview
 
 This system uses a pre-trained MobileNetV2 model with transfer learning to classify posture in real-time from webcam feeds or video files. It's designed to assist healthcare professionals in monitoring patient posture during rehabilitation exercises.
 
-## 🏥 Clinical Relevance
+## Clinical Relevance
 
 ### Applications in Physiotherapy
 - **Tele-rehabilitation**: Monitor patients performing exercises remotely
@@ -22,9 +22,9 @@ This system uses a pre-trained MobileNetV2 model with transfer learning to class
 - Sports injury recovery
 - Workplace ergonomics assessment
 
-**⚠️ Disclaimer**: This is a research/educational tool and not a certified medical device. It should complement, not replace, professional medical supervision.
+** Disclaimer**: This is a research/educational tool and not a certified medical device. It should complement, not replace, professional medical supervision.
 
-## 🛠️ Installation
+## Installation
 
 ### Prerequisites
 - Python 3.8 or higher
@@ -55,7 +55,7 @@ This system uses a pre-trained MobileNetV2 model with transfer learning to class
    mkdir -p data/correct data/incorrect models notebooks
    ```
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 posture-recognition/
@@ -73,7 +73,7 @@ posture-recognition/
 └── README.md             # This file
 ```
 
-## 🚀 Quick Start
+## Quick Start
 
 ### 1. First-Time Setup
 
@@ -143,7 +143,7 @@ cd src
 python inference.py
 ```
 
-## 📊 Model Architecture
+## Model Architecture
 
 - **Base Model**: MobileNetV2 (pre-trained on ImageNet)
 - **Transfer Learning**: Frozen base layers + custom classification head
@@ -157,7 +157,7 @@ python inference.py
 - **Model Checkpointing**: Saves best performing model
 - **Learning Rate Reduction**: Adaptive learning rate scheduling
 
-## 🎮 Usage Examples
+## Usage Examples
 
 ### Training with Custom Data
 ```python
@@ -190,7 +190,7 @@ inference = PostureInference("models/best_posture_model.h5")
 inference.run_webcam_inference(camera_id=0)
 ```
 
-## 📈 Performance Metrics
+## Performance Metrics
 
 The model tracks several metrics during training:
 - **Accuracy**: Overall classification accuracy
@@ -203,7 +203,7 @@ Expected performance with good quality data:
 - Validation Accuracy: 80-90%
 - Real-time Inference: 15-30 FPS (depending on hardware)
 
-## 🔧 Customization
+## Customization
 
 ### Modifying the Model
 Edit `src/train.py` to:
@@ -223,7 +223,7 @@ The training script includes optional fine-tuning:
 - Uses lower learning rate for better convergence
 - Improves model performance on your specific dataset
 
-## 🔍 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
@@ -251,7 +251,7 @@ cd src
 python train.py  # Not from root directory
 ```
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Areas for improvement:
 - **Dataset Collection**: Gather diverse, high-quality posture datasets
@@ -260,18 +260,18 @@ Contributions are welcome! Areas for improvement:
 - **Clinical Validation**: Collaborate with healthcare professionals for validation
 - **UI/UX**: Develop user-friendly interfaces for clinical settings
 
-## 📄 License
+## License
 
 This project is open source and available under the [MIT License](LICENSE).
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - **TensorFlow/Keras Team**: For the deep learning framework
 - **OpenCV Community**: For computer vision tools
 - **MobileNetV2 Authors**: For the efficient architecture
 - **Healthcare Professionals**: For domain expertise and feedback
 
-## 📞 Contact
+## Contact
 
 For questions, suggestions, or collaboration opportunities:
 - GitHub Issues: [Create an issue](https://github.com/yourusername/posture-recognition/issues)
